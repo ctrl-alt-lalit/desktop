@@ -100,6 +100,7 @@ import { getDefaultBranch } from '../helpers/default-branch'
 import { stat } from 'fs/promises'
 import { findForkedRemotesToPrune } from './helpers/find-forked-remotes-to-prune'
 import { findDefaultBranch } from '../find-default-branch'
+import { CommitFilter } from '../git/commit-filter'
 
 /** The number of commits to load from history per batch. */
 const CommitBatchSize = 100
@@ -158,6 +159,8 @@ export class GitStore extends BaseStore {
 
   private _stashEntryCount = 0
 
+  private _currentFilter: CommitFilter = new CommitFilter()
+
   public constructor(
     private readonly repository: Repository,
     private readonly shell: IAppShell,
@@ -186,7 +189,13 @@ export class GitStore extends BaseStore {
     const range = revRange('HEAD', mergeBase)
 
     const commits = await this.performFailableOperation(() =>
-      getCommits(this.repository, range, CommitBatchSize)
+      getCommits(
+        this.repository,
+        range,
+        CommitBatchSize,
+        undefined,
+        this._currentFilter
+      )
     )
     if (commits == null) {
       return
@@ -227,7 +236,13 @@ export class GitStore extends BaseStore {
     this.requestsInFight.add(requestKey)
 
     const commits = await this.performFailableOperation(() =>
-      getCommits(this.repository, commitish, CommitBatchSize, skip)
+      getCommits(
+        this.repository,
+        commitish,
+        CommitBatchSize,
+        skip,
+        this._currentFilter
+      )
     )
 
     this.requestsInFight.delete(requestKey)
@@ -616,10 +631,14 @@ export class GitStore extends BaseStore {
       )
     } else {
       localCommits = await this.performFailableOperation(() =>
-        getCommits(this.repository, 'HEAD', CommitBatchSize, undefined, [
-          '--not',
-          '--remotes',
-        ])
+        getCommits(
+          this.repository,
+          'HEAD',
+          CommitBatchSize,
+          undefined,
+          this._currentFilter,
+          ['--not', '--remotes']
+        )
       )
     }
 
@@ -1674,7 +1693,9 @@ export class GitStore extends BaseStore {
     const commits = await getCommits(
       this.repository,
       revisionRange,
-      commitsToLoad
+      commitsToLoad,
+      undefined,
+      this._currentFilter
     )
 
     if (commits.length > 0) {
@@ -1709,7 +1730,13 @@ export class GitStore extends BaseStore {
   ): Promise<ReadonlyArray<Commit>> {
     const revisionRange = revRange(baseBranch.name, comparisonBranch.name)
     const commits = await this.performFailableOperation(() =>
-      getCommits(this.repository, revisionRange)
+      getCommits(
+        this.repository,
+        revisionRange,
+        undefined,
+        undefined,
+        this._currentFilter
+      )
     )
 
     if (commits == null) {
@@ -1720,6 +1747,36 @@ export class GitStore extends BaseStore {
       this.storeCommits(commits)
     }
 
+    return commits
+  }
+
+  /**
+   * Change what filter is in use when retrieving commits from the repository.
+   * Then re-retrieve all commits to ensure they're in sync with the filter.
+   *
+   * @param newFilter CommitFilter to begin using
+   * @returns Reloaded commits which match the filter
+   */
+  public async changeFilter(
+    newFilter: CommitFilter
+  ): Promise<ReadonlyArray<Commit>> {
+    this._currentFilter = newFilter
+
+    const commits =
+      (await this.performFailableOperation(() =>
+        getCommits(
+          this.repository,
+          undefined,
+          // Changing the filter will reset the scroll state, so we can re-batch
+          CommitBatchSize,
+          undefined,
+          this._currentFilter
+        )
+      )) ?? []
+
+    this.storeCommits(commits)
+
+    this.emitUpdate()
     return commits
   }
 }

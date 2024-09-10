@@ -15,6 +15,7 @@ import { parseRawUnfoldedTrailers } from './interpret-trailers'
 import { createLogParser } from './git-delimiter-parser'
 import { revRange } from '.'
 import { forceUnwrap } from '../fatal-error'
+import { CommitFilter } from './commit-filter'
 
 // File mode 160000 is used by git specifically for submodules:
 // https://github.com/git/git/blob/v2.37.3/cache.h#L62-L69
@@ -102,6 +103,7 @@ export async function getCommits(
   revisionRange?: string,
   limit?: number,
   skip?: number,
+  filter?: CommitFilter,
   additionalArgs: ReadonlyArray<string> = []
 ): Promise<ReadonlyArray<Commit>> {
   const { formatArgs, parse } = createLogParser({
@@ -133,6 +135,10 @@ export async function getCommits(
 
   if (skip !== undefined) {
     args.push(`--skip=${skip}`)
+  }
+
+  if (filter?.hasEffect()) {
+    args.push(filter.toGitLogArg())
   }
 
   args.push(
@@ -338,6 +344,7 @@ export async function doMergeCommitsExistAfterCommit(
   const mergeCommits = await getCommits(
     repository,
     commitRevRange,
+    undefined,
     undefined,
     undefined,
     ['--merges']

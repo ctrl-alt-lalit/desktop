@@ -279,6 +279,7 @@ export class RepositoryView extends React.Component<
       localTags,
       tagsToPush,
       multiCommitOperationState: mcos,
+      currentFilter,
     } = state
     const { tip } = branchesState
     const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
@@ -317,6 +318,7 @@ export class RepositoryView extends React.Component<
           this.props.askForConfirmationOnCheckoutCommit
         }
         accounts={this.props.accounts}
+        currentFilter={currentFilter}
       />
     )
   }

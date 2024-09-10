@@ -25,6 +25,7 @@ import { DefaultCommitMessage } from '../../models/commit-message'
 import { sendNonFatalException } from '../helpers/non-fatal-exception'
 import { StatsStore } from '../stats'
 import { RepoRulesInfo } from '../../models/repo-rules'
+import { CommitFilter } from '../git/commit-filter'
 
 export class RepositoryStateCache {
   private readonly repositoryState = new Map<string, IRepositoryState>()
@@ -290,6 +291,12 @@ export class RepositoryStateCache {
       return { pullRequestState: null }
     })
   }
+
+  public updateCurrentFilter(repository: Repository, filter: CommitFilter) {
+    this.update(repository, () => {
+      return { currentFilter: filter }
+    })
+  }
 }
 
 function getInitialRepositoryState(): IRepositoryState {
@@ -362,5 +369,6 @@ function getInitialRepositoryState(): IRepositoryState {
     revertProgress: null,
     multiCommitOperationUndoState: null,
     multiCommitOperationState: null,
+    currentFilter: new CommitFilter(),
   }
 }

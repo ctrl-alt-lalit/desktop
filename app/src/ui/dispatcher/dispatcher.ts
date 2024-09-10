@@ -122,6 +122,7 @@ import { UnreachableCommitsTab } from '../history/unreachable-commits-dialog'
 import { sendNonFatalException } from '../../lib/helpers/non-fatal-exception'
 import { SignInResult } from '../../lib/stores/sign-in-store'
 import { ICustomIntegration } from '../../lib/custom-integration'
+import { CommitFilter } from '../../lib/git/commit-filter'
 
 /**
  * An error handler function.
@@ -410,6 +411,14 @@ export class Dispatcher {
   /** Close the specified foldout */
   public closeFoldout(foldout: FoldoutType): Promise<void> {
     return this.appStore._closeFoldout(foldout)
+  }
+
+  /** Change how commits are being filtered from the repository */
+  public changeFilter(
+    repository: Repository,
+    filter: CommitFilter
+  ): Promise<void> {
+    return this.appStore._changeFilter(repository, filter)
   }
 
   /**

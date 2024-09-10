@@ -33,6 +33,7 @@ import { doMergeCommitsExistAfterCommit } from '../../lib/git'
 import { KeyboardInsertionData } from '../lib/list'
 import { Account } from '../../models/account'
 import { Emoji } from '../../lib/emoji'
+import { CommitFilter, CommitFilterType } from '../../lib/git/commit-filter'
 
 interface ICompareSidebarProps {
   readonly repository: Repository
@@ -60,6 +61,7 @@ interface ICompareSidebarProps {
   readonly isMultiCommitOperationInProgress?: boolean
   readonly shasToHighlight: ReadonlyArray<string>
   readonly accounts: ReadonlyArray<Account>
+  readonly currentFilter: CommitFilter
 }
 
 interface ICompareSidebarState {
@@ -87,6 +89,7 @@ export class CompareSidebar extends React.Component<
   private commitListRef = React.createRef<CommitList>()
   private loadingMoreCommitsPromise: Promise<void> | null = null
   private resultCount = 0
+  private filterTextBox: TextBox | null = null
 
   public constructor(props: ICompareSidebarProps) {
     super(props)
@@ -138,6 +141,8 @@ export class CompareSidebar extends React.Component<
         this.textbox.blur()
       }
     }
+
+    this.filterTextBox?.blur()
   }
 
   public focusHistory() {
@@ -150,6 +155,7 @@ export class CompareSidebar extends React.Component<
 
   public componentWillUnmount() {
     this.textbox = null
+    this.filterTextBox = null
 
     // by hiding the branch list here when the component is torn down
     // we ensure any ahead/behind computation work is discarded
@@ -177,6 +183,17 @@ export class CompareSidebar extends React.Component<
             onValueChanged={this.onBranchFilterTextChanged}
             onKeyDown={this.onBranchFilterKeyDown}
             onSearchCleared={this.handleEscape}
+          />
+          <FancyTextBox
+            ariaLabel="Commit filter"
+            symbol={octicons.filter}
+            displayClearButton={true}
+            placeholder="Filter by author"
+            value={this.props.currentFilter.pattern}
+            onRef={this.onFilterTextBoxRef}
+            onBlur={this.onFilterTextBoxBlur}
+            onKeyDown={this.onFilterTextBoxKeyDown}
+            onSearchCleared={this.onFilterTextBoxEscape}
           />
         </div>
 
@@ -597,6 +614,42 @@ export class CompareSidebar extends React.Component<
 
   private onTextBoxRef = (textbox: TextBox) => {
     this.textbox = textbox
+  }
+
+  private onFilterTextBoxRef = (textbox: TextBox) => {
+    this.filterTextBox = textbox
+  }
+
+  private onFilterTextBoxBlur = (filterText: string) => {
+    this.filterTextBox?.setState({ value: filterText })
+    const newFilter =
+      filterText.length === 0
+        ? new CommitFilter()
+        : new CommitFilter(CommitFilterType.Author, filterText)
+    this.props.dispatcher.changeFilter(this.props.repository, newFilter)
+  }
+
+  private onFilterTextBoxEscape = () => {
+    this.props.dispatcher.changeFilter(
+      this.props.repository,
+      new CommitFilter()
+    )
+  }
+
+  private onFilterTextBoxKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    const key = event.key
+    if (key !== 'Enter' && key !== 'Escape') {
+      return
+    }
+
+    event.preventDefault()
+    if (key === 'Enter') {
+      this.filterTextBox?.blur()
+    } else {
+      this.filterTextBox?.setState({ valueCleared: true })
+    }
   }
 
   private onCreateTag = (targetCommitSha: string) => {

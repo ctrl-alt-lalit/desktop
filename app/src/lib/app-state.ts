@@ -50,6 +50,7 @@ import { RepoRulesInfo } from '../models/repo-rules'
 import { IAPIRepoRuleset } from './api'
 import { ICustomIntegration } from './custom-integration'
 import { Emoji } from './emoji'
+import { CommitFilter } from './git/commit-filter'
 
 export enum SelectionType {
   Repository,
@@ -557,6 +558,8 @@ export interface IRepositoryState {
   /** State associated with a multi commit operation such as rebase,
    * cherry-pick, squash, reorder... */
   readonly multiCommitOperationState: IMultiCommitOperationState | null
+
+  readonly currentFilter: CommitFilter
 }
 
 export interface IBranchesState {

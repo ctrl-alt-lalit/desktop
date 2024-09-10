@@ -343,6 +343,7 @@ import {
 } from '../trampoline/use-external-credential-helper'
 import { IOAuthAction } from '../parse-app-url'
 import { ICustomIntegration } from '../custom-integration'
+import { CommitFilter } from '../git/commit-filter'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -7180,6 +7181,25 @@ export class AppStore extends TypedBaseStore<IAppState> {
     branch: Branch
   ): Promise<IAheadBehind | null> {
     return getBranchAheadBehind(repository, branch)
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _changeFilter(
+    repository: Repository,
+    filter: CommitFilter
+  ): Promise<void> {
+    // Update text field
+    this.repositoryStateCache.updateCurrentFilter(repository, filter)
+    this.emitUpdate()
+
+    // Update the actual commit list
+    const commitSHAs = (
+      await this.gitStoreCache.get(repository).changeFilter(filter)
+    ).map(commit => commit.sha)
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitSHAs,
+    }))
+    this.emitUpdate()
   }
 
   public _setLastThankYou(lastThankYou: ILastThankYou) {
